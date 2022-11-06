@@ -6,6 +6,7 @@ import Table from 'react-bootstrap/Table';
 import { Button, Form, Modal } from "react-bootstrap";
 import Borrowed from "./Borrowed";
 import NewBook from "./NewBook";
+import {ethers} from 'ethers'
 
 
  
@@ -14,7 +15,7 @@ type LibraryContract = {
 }
 
 const Library = ({contractAddress}: LibraryContract) => {
-    const useLibrauseLibraryContract = useLibraryContract(contractAddress);
+    const usLibraryContract = useLibraryContract(contractAddress);
     const { account, library } = useWeb3React<Web3Provider>();
     const [borrowed, setBorrowed]  = useState<string>("");
     const [books, setBooks] = useState<string[]>();
@@ -32,6 +33,32 @@ const Library = ({contractAddress}: LibraryContract) => {
         }
     }   
     
+    const handleNewBook = async (isbn,qty) =>{
+        const isbnHex = ethers.utils.hexZeroPad(ethers.utils.hexlify(isbn),6);
+
+    
+        try {
+            const tx = await usLibraryContract.addBook(isbnHex,qty);
+            setTxHash(tx.hash);
+            setLoaderVisible(true);
+            const txReceipt = await tx.wait();
+            setLoaderVisible(false);
+            resetForm();
+            updateData();
+          }
+          catch(err){
+            if(err.message){
+              setErrorMessage(err.message);
+            }
+            if(err.data.message){
+              setErrorMessage(err.data.message)
+            }
+            else{
+              setErrorMessage(err);
+            }
+            setShowError(true);
+          }
+    }
 
     return(
         <div>
