@@ -1,0 +1,14 @@
+{
+  "../hooks/useMetaMaskOnboarding.ts -> @metamask/onboarding": {
+    "id": "./node_modules/@metamask/onboarding/dist/metamask-onboarding.es.js",
+    "files": [
+      "static/chunks/node_modules_metamask_onboarding_dist_metamask-onboarding_es_js.js"
+    ]
+  },
+  "../node_modules/@web3-react/walletconnect-connector/dist/walletconnect-connector.esm.js -> @walletconnect/ethereum-provider": {
+    "id": "./node_modules/@walletconnect/ethereum-provider/dist/esm/index.js",
+    "files": [
+      "static/chunks/node_modules_walletconnect_ethereum-provider_dist_esm_index_js.js"
+    ]
+  }
+}
