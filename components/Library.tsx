@@ -7,6 +7,8 @@ import { Button, Form, Modal } from "react-bootstrap";
 import Borrowed from "./Borrowed";
 import NewBook from "./NewBook";
 import {ethers} from 'ethers'
+import ErrorHandler from "./ErrorHandler";
+import LoaderTransaction from "./LoaderTransaction";
 
 
  
@@ -20,6 +22,11 @@ const Library = ({contractAddress}: LibraryContract) => {
     const [borrowed, setBorrowed]  = useState<string>("");
     const [books, setBooks] = useState<string[]>();
     const [showNewBookModal, setNewBookModal]= useState<boolean>(false);
+    const [showLoaderModal, setShowLoaderModal] = useState<boolean>(false);
+    const [txHash,setTxHash] = useState<string>();
+    const [errorMsg,setErrorMsg] = useState<string>();
+    const [showErrorHandler, setShowErrorHandler] = useState<boolean>(false);
+
     useEffect(()=>{
 
     },[])
@@ -31,37 +38,45 @@ const Library = ({contractAddress}: LibraryContract) => {
         else{
             setNewBookModal(false);
         }
-    }   
+    }  
     
-    const handleNewBook = async (isbn,qty) =>{
-        const isbnHex = ethers.utils.hexZeroPad(ethers.utils.hexlify(isbn),6);
+    const handleCleanErrors= () => {
+        setShowErrorHandler(false);
+        setErrorMsg("");
+      }
+    
+    const errorTrigger = (msg:string) =>{
+        setShowErrorHandler(true);
+        setErrorMsg(msg);
+    }
+    const handleNewBook = async (isbn:number,qty:number) =>{
+        let isbnHex = ethers.BigNumber.from(isbn).toHexString()
+        isbnHex = ethers.utils.hexZeroPad(isbnHex,6);
 
-    
         try {
+            debugger;
             const tx = await usLibraryContract.addBook(isbnHex,qty);
             setTxHash(tx.hash);
-            setLoaderVisible(true);
+            setShowLoaderModal(true);
             const txReceipt = await tx.wait();
-            setLoaderVisible(false);
-            resetForm();
-            updateData();
+            setShowLoaderModal(false);
           }
           catch(err){
             if(err.message){
-              setErrorMessage(err.message);
+                errorTrigger(err.message);
             }
             if(err.data.message){
-              setErrorMessage(err.data.message)
+                errorTrigger(err.data.message)
             }
             else{
-              setErrorMessage(err);
+                errorTrigger(err);
             }
-            setShowError(true);
           }
     }
 
     return(
         <div>
+            <ErrorHandler showErrorHandler={showErrorHandler} errorMsg={errorMsg} handleCleanErrors={handleCleanErrors}/>
             <div className="upperTable">
             <Borrowed borrowed={borrowed} />
             <div className="button-wrapper">
@@ -84,7 +99,8 @@ const Library = ({contractAddress}: LibraryContract) => {
                 </tbody>
             </Table>
 
-            <NewBook showNewBookModal={showNewBookModal} handleNewBookModal={handleNewBookModal} />
+            <NewBook showNewBookModal={showNewBookModal} handleNewBookModal={handleNewBookModal} handleNewBook={handleNewBook} /> 
+            <LoaderTransaction showLoaderModal={showLoaderModal} txHash={txHash}/>
 
 
   
