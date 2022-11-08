@@ -3,6 +3,5 @@ import type { LibraryV2 } from "../contracts/types";
 import useContract from "./useContract";
 
 export default function useLibraryContract(contractAddress?: string) {
-  console.log(LIBRARY_ABI);
   return useContract<LibraryV2>(contractAddress, LIBRARY_ABI);
 }

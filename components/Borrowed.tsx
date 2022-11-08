@@ -2,10 +2,10 @@ import React from 'react'
 
 
 type BorrowedProps = {
-    borrowed:string;
+    borrowed:number;
 }
 const Borrowed = ({borrowed}:BorrowedProps) => {
-  if(borrowed.length>0){
+  if(borrowed!=0){
     return (
         <p>
             <strong>You borrowed: </strong> {borrowed}
