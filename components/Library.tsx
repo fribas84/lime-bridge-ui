@@ -32,7 +32,7 @@ const Library = ({contractAddress}: LibraryContract) => {
     const [errorMsg,setErrorMsg] = useState<string>();
     const [showErrorHandler, setShowErrorHandler] = useState<boolean>(false);
     const [bookList,setBooksList] = useState<Book[]>();
-    const [cannotBorrow,setCannotBorrow] = useState<boolean>(false);
+    const [cannotBorrow,setCannotBorrow] = useState<boolean>();
 
 
     useEffect(()=>{
@@ -45,9 +45,10 @@ const Library = ({contractAddress}: LibraryContract) => {
 
     const getBorrowed = async () =>{
         const _borrowed = await usLibraryContract.hasBorrowed();
-   
+        console.log(cannotBorrow);
         setBorrowed(parseToDec(_borrowed));
-        if(borrowed>0){
+        console.log(borrowed);
+        if(borrowed != 0){
             setCannotBorrow(true);
         }
     }
@@ -83,6 +84,7 @@ const Library = ({contractAddress}: LibraryContract) => {
           catch(err){
              errorTrigger(err.message);
         }
+        loadBooks();
         
     }
 
@@ -115,6 +117,7 @@ const Library = ({contractAddress}: LibraryContract) => {
                 setShowLoaderModal(true);
                 const txReceipt = await tx.wait();
                 setShowLoaderModal(false);
+                setCannotBorrow(true);
             }
             catch(err){
                 errorTrigger(err.message);
@@ -124,6 +127,7 @@ const Library = ({contractAddress}: LibraryContract) => {
         else{
             errorTrigger("No Stock Available.");
         }
+        getBorrowed();
     }   
     
     const handleReturn = async () =>{
@@ -133,6 +137,7 @@ const Library = ({contractAddress}: LibraryContract) => {
             setShowLoaderModal(true);
             const txReceipt = await tx.wait();
             setShowLoaderModal(false);
+            setCannotBorrow(false);
         }
         catch(err){
             
@@ -161,7 +166,7 @@ const Library = ({contractAddress}: LibraryContract) => {
  
             </div>
          
-            <div className="button-wrapper" hidden={cannotBorrow}>
+            <div className="button-wrapper" hidden={!cannotBorrow}>
                     <Button variant="warning" onClick={handleReturn}> Return book</Button>
             </div>
                
