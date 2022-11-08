@@ -9,6 +9,7 @@ import NewBook from "./NewBook";
 import {ethers} from 'ethers'
 import ErrorHandler from "./ErrorHandler";
 import LoaderTransaction from "./LoaderTransaction";
+import Book from "./Book";
 
 
 type LibraryContract = {
@@ -82,6 +83,7 @@ const Library = ({contractAddress}: LibraryContract) => {
           catch(err){
              errorTrigger(err.message);
         }
+        
     }
 
     const parseToDec = hex =>parseInt(hex,16);
@@ -90,17 +92,7 @@ const Library = ({contractAddress}: LibraryContract) => {
         setBooks(rawAvailableBooks.map(book => parseToDec(book)));
     }
 
-    const booksWithStock = async () =>{
-        let books2add = [];
-        for(let i=0;i<books.length;i++){
-            const book2add:Book = {"isbn":books[i], "stock":await getStock(books[i])}
-            console.log(book2add);
-            books2add?.push(book2add);
 
-        }
-        setBooksList(books2add);
-
-    }
     const getStock = async(isbn:number)=>{
         let isbnHex = ethers.BigNumber.from(isbn).toHexString()
         isbnHex = ethers.utils.hexZeroPad(isbnHex,6);
@@ -127,7 +119,7 @@ const Library = ({contractAddress}: LibraryContract) => {
             catch(err){
                 errorTrigger(err.message);
             }
-            await getBorrowed();
+            
         }
         else{
             errorTrigger("No Stock Available.");
@@ -144,6 +136,18 @@ const Library = ({contractAddress}: LibraryContract) => {
         }
         catch(err){
             
+            errorTrigger(err.message);
+        }
+        
+    }
+
+    const getHistory = async (book:number) =>{
+        let isbnHex = ethers.BigNumber.from(book).toHexString()
+        isbnHex = ethers.utils.hexZeroPad(isbnHex,6);
+        try{
+            return await usLibraryContract.getBookHistory(isbnHex);
+        }
+        catch(err){
             errorTrigger(err.message);
         }
     }
@@ -178,11 +182,14 @@ const Library = ({contractAddress}: LibraryContract) => {
                         return(
                             <tr key={book}>
                                 <td>{book}</td>
-                                <td> 
-                                    <Button disabled={cannotBorrow} variant="success" onClick={()=>handleBorrow(book)}> Borrow </Button>
-                            
-                                </td>
-                            </tr>)})
+                                <Book
+                                            cannotBorrow={cannotBorrow}
+                                            book={book}
+                                            handleBorrow={handleBorrow} 
+                                            getHistory={getHistory}/>                                            
+                                
+                            </tr>    
+                            )})
                     }
 
                 </tbody>
@@ -201,14 +208,18 @@ const Library = ({contractAddress}: LibraryContract) => {
             }
 
             .button-wrapper {
-            margin: 5px;
-            float: right;
+                margin: 5px;
+                float: right;
             }
             .bookRentWrapper {
                 float:left;
             }
             .upperTable {
                 position:inline;
+            }
+            .actionButton {
+                margin:1px;
+                padding:1px;
             }
 
             
