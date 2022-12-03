@@ -16,7 +16,8 @@ import { useState } from "react";
 
 enum Networks{
   Goerli,
-  Mumbai
+  Mumbai,
+  BSC
 }
 
 function Home() {
