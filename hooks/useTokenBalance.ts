@@ -1,7 +1,7 @@
 import useSWR from "swr";
 import type { ERC20 } from "../contracts/types";
 import useKeepSWRDataLiveAsBlocksArrive from "./useKeepSWRDataLiveAsBlocksArrive";
-import useTokenContract from "./useTokenContract";
+import useTokenContract from "./useToken";
 
 function getTokenBalance(contract: ERC20) {
   return async (_: string, address: string) => {
