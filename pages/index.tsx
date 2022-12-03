@@ -23,11 +23,11 @@ function Home() {
   const { account, library } = useWeb3React();
   const triedToEagerConnect = useEagerConnect();
   const isConnected = typeof account === "string" && !!library;
-  const [network, setNetwork] = useState<number>(0);
+  const [network, setNetwork] = useState<Networks>(0);
   
   
-  const handleSetNetork = (network:number) => {
-    setNetwork(0);
+  const handleSetNetork = (network:Networks) => {
+    setNetwork(network);
   }
   return (
     
@@ -59,6 +59,7 @@ function Home() {
         {isConnected && (
           <>
           <section>
+
             <Balance contractAddress={TOKEN1_ADDRESS} />
             <Balance contractAddress={TOKEN2_ADDRESS} />
           </section>
