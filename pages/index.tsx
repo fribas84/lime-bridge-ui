@@ -60,7 +60,12 @@ function Home() {
         {isConnected && (
           <>
           <section>
-            <Bridge></Bridge>
+            <Bridge GOERLI_TOKEN={GOERLI_TOKEN}
+                    MUMBAI_TOKEN={MUMBAI_TOKEN}
+                    GOERLI_BRIDGE={GOERLI_BRIDGE}
+                    MUMBAI_BRIDGE={MUMBAI_BRIDGE}
+
+                    />
           </section>
           </>
         )}
