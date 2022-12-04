@@ -60,11 +60,6 @@ function Home() {
         {isConnected && (
           <>
           <section>
-
-            <Balance contractAddress={TOKEN1_ADDRESS} />
-            <Balance contractAddress={TOKEN2_ADDRESS} />
-          </section>
-          <section>
             <Bridge></Bridge>
           </section>
           </>

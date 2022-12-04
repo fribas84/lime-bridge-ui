@@ -10,7 +10,7 @@
   };
 
   // Network chain ids
-  export const supportedMetamaskNetworks = [1, 3, 4, 5, 42, 1337]
+  export const supportedMetamaskNetworks = [1, 3, 4, 5, 42, 31337]
 
   //Hardhat node
 
