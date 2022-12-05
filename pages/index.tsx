@@ -80,6 +80,11 @@ function Home() {
         main {
           text-align: center;
         }
+        .btn {
+          margin: 15px;
+          
+        }
+      
       `}</style>
  
       </Container>

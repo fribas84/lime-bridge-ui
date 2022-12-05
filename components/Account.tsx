@@ -117,7 +117,7 @@ const Account = ({ triedToEagerConnect }: AccountProps) => {
             }
           }}>
           Disconnect
-        </Button>
+        </Button> 
     </>
    
     
