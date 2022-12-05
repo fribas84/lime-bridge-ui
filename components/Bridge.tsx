@@ -34,6 +34,8 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
   const [tokensToTx, setTokensToTx] = useState<number>(0);
   const [showLoaderModal, setShowLoaderModal] = useState<boolean>(false);
   const [txHash,setTxHash] = useState<string>();
+  const [showErrorHandler,setShowErrorHandler] = useState<boolean>(false);
+  const [errorMsg,setErrorMsg] = useState<string>();
 
   useEffect( () => {
     const fetchData = async () => {
@@ -92,11 +94,20 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
           setTimeout(resolve, milliseconds);
       });
     }
+  const errorTrigger = (msg:string) =>{
+      setShowErrorHandler(true);
+      setErrorMsg(msg);
+  }
+  const handleCleanErrors= () => {
+    setShowErrorHandler(false);
+    setErrorMsg("");
+  }
 
   const handleTransfer= async () => {
     const hashlock  = newHashLock();
     const allowTokens  = ethers.utils.parseEther(String(tokensToTx));
     if(destNetwork == "Mumbai"){
+      try{
       console.log("in dest mumbai");
       const destinationNetwork = 1;
       await useGoerliToken.approve(GOERLI_BRIDGE,allowTokens);
@@ -125,9 +136,14 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
       console.log("GOERLI Account: " + await useGoerliToken.balanceOf(account));
       console.log("Mumbai Account: " + await useMumbaiToken.balanceOf(account));
       setShowLoaderModal(false);
+      }
+      catch(err){
+          errorTrigger(err.message);
+      }
     }
     if(destNetwork == "Goerli"){
-      console.log("in dest mumbai");
+      try{
+
       const destinationNetwork = 0;
       await useMumbaiToken.approve(MUMBAI_BRIDGE,allowTokens);
       const newRequestTransaction = await useMumbaiBridge.requestTransaction(allowTokens,destinationNetwork,hashlock.hash);
@@ -155,8 +171,11 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
       console.log("GOERLI Account: " + await useGoerliToken.balanceOf(account));
       console.log("Mumbai Account: " + await useMumbaiToken.balanceOf(account));
       setShowLoaderModal(false);
+      }
+      catch(err){
+        errorTrigger(err.message);
+      }
     }
-
 
   }
 
@@ -204,9 +223,11 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
       </Table>
         <Button variant="danger"  onClick={handleClear}> Clear</Button>{" "}
         <Button variant="success" onClick={handleTransfer}> Transfer</Button>
+
       </Container>
 
       <LoaderTransaction showLoaderModal={showLoaderModal} txHash={txHash}/>
+      <ErrorHandler showErrorHandler={showErrorHandler} errorMsg={errorMsg} handleCleanErrors={handleCleanErrors}/>
 
 
       <style jsx>{`
