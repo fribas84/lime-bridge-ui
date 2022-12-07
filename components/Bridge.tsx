@@ -39,7 +39,7 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
 
   useEffect( () => {
     const fetchData = async () => {
-      await handleGetAvailableTokens();
+    await handleGetAvailableTokens();
 
     }
     fetchData();
@@ -106,78 +106,50 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
   const handleTransfer= async () => {
     const hashlock  = newHashLock();
     const allowTokens  = ethers.utils.parseEther(String(tokensToTx));
-    if(destNetwork == "Mumbai"){
-      try{
-      console.log("in dest mumbai");
-      const destinationNetwork = 1;
-      await useGoerliToken.approve(GOERLI_BRIDGE,allowTokens);
-      const newRequestTransaction = await useGoerliBridge.requestTransaction(allowTokens,destinationNetwork,hashlock.hash);
-      setTxHash(newRequestTransaction.hash);
-      setShowLoaderModal(true);
-      const txReceipt = await newRequestTransaction.wait();
-      const bal = await useGoerliToken.balanceOf(account);
-      console.log("current balance: " +  (Number(ethers.utils.formatEther(bal))) );
-      const [newTransferBridgeRequest] = txReceipt.events.filter((el)=>{ return el.event == 'NewTransferBridgeRequest'});
-      console.log(newTransferBridgeRequest);
-      const [user,amount,destination,timelock,_hashlock,transferId] = newTransferBridgeRequest.args
-      const initDestinationTransfer = await useMumbaiBridge.initDestinationTransfer(amount,timelock,destination,_hashlock,transferId);
-      setShowLoaderModal(false);
-      setTxHash(initDestinationTransfer.hash);
-      setShowLoaderModal(true);
-      const txReceipt2 = await initDestinationTransfer.wait();
-      const [initDestinationTransferResult] = txReceipt2.events.filter((el)=>{ return el.event == 'NewTransferAvailable'});
-      await wait(20000);
-      const withdrawRequest = await useMumbaiBridge.withdraw(transferId);
-      setShowLoaderModal(false);
-      setTxHash(withdrawRequest.hash);
-      setShowLoaderModal(true);
-      const txReceiptWithdraw = await withdrawRequest.wait();
-      console.log(txReceiptWithdraw.events);
-      console.log("GOERLI Account: " + await useGoerliToken.balanceOf(account));
-      console.log("Mumbai Account: " + await useMumbaiToken.balanceOf(account));
-      setShowLoaderModal(false);
-      }
-      catch(err){
-          errorTrigger(err.message);
-      }
-    }
-    if(destNetwork == "Goerli"){
-      try{
+    
+    const destinationNetwork = destNetwork ===  "Mumbai" ? 1:0;
+    const originToken = destNetwork ===  "Mumbai" ? useGoerliToken : useMumbaiToken;
+    const destinationToken = destNetwork ===  "Mumbai" ? useMumbaiToken: useGoerliToken;
+    const originBridge = destNetwork ===  "Mumbai" ? useGoerliBridge: useMumbaiBridge;
+    const destinationBridge = destNetwork ===  "Mumbai" ? useMumbaiBridge: useGoerliBridge;
 
-      const destinationNetwork = 0;
-      await useMumbaiToken.approve(MUMBAI_BRIDGE,allowTokens);
-      const newRequestTransaction = await useMumbaiBridge.requestTransaction(allowTokens,destinationNetwork,hashlock.hash);
+    try{
+      await originToken.approve(originBridge.address,allowTokens);
+      const newRequestTransaction = await originBridge.requestTransaction(allowTokens,
+                                                                          destinationNetwork,
+                                                                          hashlock.hash);
       setTxHash(newRequestTransaction.hash);
       setShowLoaderModal(true);
       const txReceipt = await newRequestTransaction.wait();
-      const bal = await useMumbaiToken.balanceOf(account);
-      console.log("current balance: " +  (Number(ethers.utils.formatEther(bal))) );
       const [newTransferBridgeRequest] = txReceipt.events.filter((el)=>{ return el.event == 'NewTransferBridgeRequest'});
-      console.log(newTransferBridgeRequest);
-      const [user,amount,destination,timelock,_hashlock,transferId] = newTransferBridgeRequest.args
-      const initDestinationTransfer = await useGoerliBridge.initDestinationTransfer(amount,timelock,destination,_hashlock,transferId);
+      const [user,amount,destination,timelock,_hashlock,transferId] = newTransferBridgeRequest.args;
+      const initDestinationTransfer = await destinationBridge.initDestinationTransfer(amount,
+                                                                                      timelock,
+                                                                                      destination,
+                                                                                      _hashlock,
+                                                                                      transferId);
       setShowLoaderModal(false);
       setTxHash(initDestinationTransfer.hash);
       setShowLoaderModal(true);
       const txReceipt2 = await initDestinationTransfer.wait();
       const [initDestinationTransferResult] = txReceipt2.events.filter((el)=>{ return el.event == 'NewTransferAvailable'});
       await wait(20000);
-      const withdrawRequest = await useGoerliBridge.withdraw(transferId);
+      const withdrawRequest = await destinationBridge.withdraw(transferId);
       setShowLoaderModal(false);
       setTxHash(withdrawRequest.hash);
       setShowLoaderModal(true);
-      const txReceiptWithdraw = await withdrawRequest.wait();
-      console.log(txReceiptWithdraw.events);
-      console.log("GOERLI Account: " + await useGoerliToken.balanceOf(account));
-      console.log("Mumbai Account: " + await useMumbaiToken.balanceOf(account));
+      await wait(5000);
       setShowLoaderModal(false);
-      }
+    }
       catch(err){
         errorTrigger(err.message);
-      }
     }
-
+    finally{
+      await handleGetAvailableTokens();
+    }
   }
+    
+
 
   return (
     <div>
