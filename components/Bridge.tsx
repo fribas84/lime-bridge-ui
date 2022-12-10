@@ -16,11 +16,16 @@ type BridgeContract = {
   MUMBAI_TOKEN: string;
   GOERLI_BRIDGE: string;
   MUMBAI_BRIDGE: string;
+ 
 }
 
 
 
-const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeContract) => {
+const Bridge = ({GOERLI_TOKEN,
+                MUMBAI_TOKEN,
+                GOERLI_BRIDGE,
+                MUMBAI_BRIDGE,
+              }: BridgeContract) => {
   const { account, library, chainId,} = useWeb3React<Web3Provider>();
   const useGoerliToken = useToken(GOERLI_TOKEN);
   const useMumbaiToken = useToken(MUMBAI_TOKEN);
@@ -35,6 +40,9 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
   const [txHash,setTxHash] = useState<string>();
   const [showErrorHandler,setShowErrorHandler] = useState<boolean>(false);
   const [errorMsg,setErrorMsg] = useState<string>();
+
+
+ 
 
   useEffect( () => {
     const fetchData = async () => {
@@ -59,6 +67,17 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
     });
     window.location.reload();
   }
+
+  const switchNetworkNoReload = async () => {
+    const mumbaiId = `0x${Number(80001).toString(16)}`;
+    const goerliId = `0x${Number(5).toString(16)}`;
+    const switchNet =  currentNetwork ===  "Mumbai" ? goerliId : mumbaiId;
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: switchNet }],
+    });
+  }
+
   const handleSelectNetwork = async (e) =>{
     
     if(e!=destNetwork){
@@ -67,9 +86,6 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
       await setDestNetwork(e);
       await handleGetAvailableTokens();
     }
-;
-
-    
   }
 
   const handleGetAvailableTokens = async () =>{
@@ -120,17 +136,24 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
   }
 
   const handleTransfer= async () => {
+    
     const hashlock  = newHashLock();
     const allowTokens  = ethers.utils.parseEther(String(tokensToTx));
-    const options = {value: ethers.utils.parseEther("0.000001")};
+    const options = {value: ethers.utils.parseEther("0.00005")};
     const destinationNetwork = destNetwork ===  "Mumbai" ? 1:0;
     const originToken = destNetwork ===  "Mumbai" ? useGoerliToken : useMumbaiToken;
     const destinationToken = destNetwork ===  "Mumbai" ? useMumbaiToken: useGoerliToken;
     const originBridge = destNetwork ===  "Mumbai" ? useGoerliBridge: useMumbaiBridge;
     const destinationBridge = destNetwork ===  "Mumbai" ? useMumbaiBridge: useGoerliBridge;
-
     try{
-      await originToken.approve(originBridge.address,allowTokens);
+      
+      console.log("Approve");
+      const approve = await originToken.approve(originBridge.address,allowTokens);
+      setTxHash(approve.hash);
+      setShowLoaderModal(true);
+      await approve.wait();
+      setShowLoaderModal(false);
+      console.log("request tx");
       const newRequestTransaction = await originBridge.requestTransaction(allowTokens,
                                                                           destinationNetwork,
                                                                           hashlock.hash,
@@ -140,33 +163,49 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
       const txReceipt = await newRequestTransaction.wait();
       const [newTransferBridgeRequest] = txReceipt.events.filter((el)=>{ return el.event == 'NewTransferBridgeRequest'});
       const [user,amount,destination,timelock,_hashlock,transferId] = newTransferBridgeRequest.args;
+      setShowLoaderModal(false);
+      await wait(5000);   
+      console.log("switch");
+      await switchNetworkNoReload();
       const initDestinationTransfer = await destinationBridge.initDestinationTransfer(amount,
                                                                                       timelock,
                                                                                       destination,
                                                                                       _hashlock,
                                                                                       transferId,
                                                                                       options);
-      setShowLoaderModal(false);
+      
       setTxHash(initDestinationTransfer.hash);
+      console.log("init destination");
       setShowLoaderModal(true);
-      const txReceipt2 = await initDestinationTransfer.wait();
-      const [initDestinationTransferResult] = txReceipt2.events.filter((el)=>{ return el.event == 'NewTransferAvailable'});
+      const destTransferReceipt = await initDestinationTransfer.wait();
+      const [initDestinationTransferResult] = destTransferReceipt.events.filter((el)=>{ return el.event == 'NewTransferAvailable'});
+      console.log("wait for timelock");
       await wait(20000);
+      console.log("widthderaw");
       const withdrawRequest = await destinationBridge.withdraw(transferId);
       setShowLoaderModal(false);
       setTxHash(withdrawRequest.hash);
       setShowLoaderModal(true);
-      await wait(5000);
+      await withdrawRequest.wait()
       setShowLoaderModal(false);
+      console.log("commit tx");
+      await switchNetworkNoReload();
+
+      const commit = await originBridge.commitTransaction(transferId);
+      setTxHash(commit.hash);
+      setShowLoaderModal(true);
+      const commitReceipt = await commit.wait();
+      setShowLoaderModal(false);
+      const [commitEvent] = commitReceipt.events.filter((el)=>{ return el.event == 'TransactionCommited'});
+      const [commitedTransferId] = commitEvent.args;
+
     }
       catch(err){
        
         errorTrigger(err.message);
-        console.log(err.message);
+        console.log(err);
     }
-    finally{
-      await handleGetAvailableTokens();
-    }
+    
   }
 
   const handleGetNetwork = async () => {

@@ -184,6 +184,19 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "bytes32",
+        "name": "transactionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "TransactionCommited",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
         "internalType": "address",
         "name": "user",
         "type": "address"
@@ -241,6 +254,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_transferId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "commitTransaction",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   },
   {
