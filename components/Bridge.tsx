@@ -1,11 +1,9 @@
-import type { Web3Provider } from "@ethersproject/providers";
+import { Provider, Web3Provider } from "@ethersproject/providers";
 import { useWeb3React } from "@web3-react/core";
 import { useEffect, useState } from "react";
 import useToken from "../hooks/useToken";
 import Table from "react-bootstrap/Table";
 import { Button, Container, Dropdown, DropdownButton, Form, InputGroup, Row} from "react-bootstrap";
-import Borrowed from "./Borrowed";
-import NewBook from "./NewBook";
 import { ethers } from "ethers";
 import ErrorHandler from "./ErrorHandler";
 import LoaderTransaction from "./LoaderTransaction";
@@ -23,13 +21,14 @@ type BridgeContract = {
 
 
 const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeContract) => {
-  const { account, library } = useWeb3React<Web3Provider>();
+  const { account, library, chainId,} = useWeb3React<Web3Provider>();
   const useGoerliToken = useToken(GOERLI_TOKEN);
   const useMumbaiToken = useToken(MUMBAI_TOKEN);
   const useGoerliBridge = useBridge(GOERLI_BRIDGE);
   const useMumbaiBridge = useBridge(MUMBAI_BRIDGE);
 
-  const [destNetwork, setDestNetwork] = useState<string>("Mumbai");
+  const [currentNetwork, setCurrentNetwork] = useState<string>();
+  const [destNetwork, setDestNetwork] = useState<string>();
   const [availableTokens, setAvailableTokens] = useState<number>();
   const [tokensToTx, setTokensToTx] = useState<number>(0);
   const [showLoaderModal, setShowLoaderModal] = useState<boolean>(false);
@@ -40,6 +39,7 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
   useEffect( () => {
     const fetchData = async () => {
     await handleGetAvailableTokens();
+    handleGetNetwork();
 
     }
     fetchData();
@@ -49,11 +49,27 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
     setTokensToTx(availableTokens);
   }
 
+  const switchNetwork = async () => {
+    const mumbaiId = `0x${Number(80001).toString(16)}`;
+    const goerliId = `0x${Number(5).toString(16)}`;
+    const switchNet =  currentNetwork ===  "Mumbai" ? goerliId : mumbaiId;
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: switchNet }],
+    });
+    window.location.reload();
+  }
   const handleSelectNetwork = async (e) =>{
-    setTokensToTx(0);
-    setDestNetwork(e);
-    handleGetAvailableTokens();
-    ;
+    
+    if(e!=destNetwork){
+      setTokensToTx(0);
+      await switchNetwork();
+      await setDestNetwork(e);
+      await handleGetAvailableTokens();
+    }
+;
+
+    
   }
 
   const handleGetAvailableTokens = async () =>{
@@ -106,7 +122,7 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
   const handleTransfer= async () => {
     const hashlock  = newHashLock();
     const allowTokens  = ethers.utils.parseEther(String(tokensToTx));
-    
+    const options = {value: ethers.utils.parseEther("0.000001")};
     const destinationNetwork = destNetwork ===  "Mumbai" ? 1:0;
     const originToken = destNetwork ===  "Mumbai" ? useGoerliToken : useMumbaiToken;
     const destinationToken = destNetwork ===  "Mumbai" ? useMumbaiToken: useGoerliToken;
@@ -117,7 +133,8 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
       await originToken.approve(originBridge.address,allowTokens);
       const newRequestTransaction = await originBridge.requestTransaction(allowTokens,
                                                                           destinationNetwork,
-                                                                          hashlock.hash);
+                                                                          hashlock.hash,
+                                                                          options);
       setTxHash(newRequestTransaction.hash);
       setShowLoaderModal(true);
       const txReceipt = await newRequestTransaction.wait();
@@ -127,7 +144,8 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
                                                                                       timelock,
                                                                                       destination,
                                                                                       _hashlock,
-                                                                                      transferId);
+                                                                                      transferId,
+                                                                                      options);
       setShowLoaderModal(false);
       setTxHash(initDestinationTransfer.hash);
       setShowLoaderModal(true);
@@ -142,11 +160,20 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
       setShowLoaderModal(false);
     }
       catch(err){
+       
         errorTrigger(err.message);
+        console.log(err.message);
     }
     finally{
       await handleGetAvailableTokens();
     }
+  }
+
+  const handleGetNetwork = async () => {
+    const network = chainId ===  5 ? "Goerli" : "Mumbai";
+    const dest = chainId === 5 ? "Mumbai" : "Goerli";
+    setCurrentNetwork(network);
+    setDestNetwork(dest);
   }
     
 
@@ -158,7 +185,8 @@ const Bridge = ({GOERLI_TOKEN,MUMBAI_TOKEN,GOERLI_BRIDGE,MUMBAI_BRIDGE}: BridgeC
         <tbody>
         <tr>
           <td>
-          <span><strong>Selected Destination Network: </strong>{destNetwork}</span>
+          <span><strong>Current Network: </strong> {currentNetwork}  </span> {"  ---  "} 
+          <span>  <strong>Selected Destination Network: </strong>{destNetwork}</span>
           </td>
           <td>
             <DropdownButton
