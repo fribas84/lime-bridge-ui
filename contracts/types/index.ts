@@ -2,9 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { Bridge } from "./Bridge";
-export type { LibraryV2 } from "./LibraryV2";
 export type { LimeToken } from "./LimeToken";
 
 export { Bridge__factory } from "./factories/Bridge__factory";
-export { LibraryV2__factory } from "./factories/LibraryV2__factory";
 export { LimeToken__factory } from "./factories/LimeToken__factory";
