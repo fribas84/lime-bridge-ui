@@ -31,7 +31,6 @@ const Bridge = ({GOERLI_TOKEN,
   const useMumbaiToken = useToken(MUMBAI_TOKEN);
   const useGoerliBridge = useBridge(GOERLI_BRIDGE);
   const useMumbaiBridge = useBridge(MUMBAI_BRIDGE);
-
   const [currentNetwork, setCurrentNetwork] = useState<string>();
   const [destNetwork, setDestNetwork] = useState<string>();
   const [availableTokens, setAvailableTokens] = useState<number>();
@@ -40,6 +39,10 @@ const Bridge = ({GOERLI_TOKEN,
   const [txHash,setTxHash] = useState<string>();
   const [showErrorHandler,setShowErrorHandler] = useState<boolean>(false);
   const [errorMsg,setErrorMsg] = useState<string>();
+  const [enable,setEnable] = useState<boolean>(true); 
+  const [scan,setScan] = useState<string>();
+  
+
 
 
  
@@ -68,13 +71,10 @@ const Bridge = ({GOERLI_TOKEN,
     window.location.reload();
   }
 
-  const switchNetworkNoReload = async () => {
-    const mumbaiId = `0x${Number(80001).toString(16)}`;
-    const goerliId = `0x${Number(5).toString(16)}`;
-    const switchNet =  currentNetwork ===  "Mumbai" ? goerliId : mumbaiId;
+  const switchNetworkNoReload = async (chain:string) => {
     await window.ethereum.request({
       method: 'wallet_switchEthereumChain',
-      params: [{ chainId: switchNet }],
+      params: [{ chainId: chain }],
     });
   }
 
@@ -136,15 +136,20 @@ const Bridge = ({GOERLI_TOKEN,
   }
 
   const handleTransfer= async () => {
-    
+    setEnable(false);
     const hashlock  = newHashLock();
     const allowTokens  = ethers.utils.parseEther(String(tokensToTx));
     const options = {value: ethers.utils.parseEther("0.00005")};
-    const destinationNetwork = destNetwork ===  "Mumbai" ? 1:0;
+    const destinationNetwork = 0; 
     const originToken = destNetwork ===  "Mumbai" ? useGoerliToken : useMumbaiToken;
     const destinationToken = destNetwork ===  "Mumbai" ? useMumbaiToken: useGoerliToken;
     const originBridge = destNetwork ===  "Mumbai" ? useGoerliBridge: useMumbaiBridge;
+    const mumbaiId = `0x${Number(80001).toString(16)}`;
+    const goerliId = `0x${Number(5).toString(16)}`;
     const destinationBridge = destNetwork ===  "Mumbai" ? useMumbaiBridge: useGoerliBridge;
+    const destChainID = destNetwork ===  "Mumbai" ?  mumbaiId: goerliId;
+    const originChainID = destNetwork ===  "Mumbai" ?  goerliId: mumbaiId;
+    let transferId;
     try{
       
       console.log("Approve");
@@ -162,35 +167,52 @@ const Bridge = ({GOERLI_TOKEN,
       setShowLoaderModal(true);
       const txReceipt = await newRequestTransaction.wait();
       const [newTransferBridgeRequest] = txReceipt.events.filter((el)=>{ return el.event == 'NewTransferBridgeRequest'});
-      const [user,amount,destination,timelock,_hashlock,transferId] = newTransferBridgeRequest.args;
+      const [user,amount,destination,timelock,_hashlock,_transferId] = newTransferBridgeRequest.args;
+      transferId = _transferId;
       setShowLoaderModal(false);
       await wait(5000);   
       console.log("switch");
-      await switchNetworkNoReload();
-      const initDestinationTransfer = await destinationBridge.initDestinationTransfer(amount,
-                                                                                      timelock,
-                                                                                      destination,
-                                                                                      _hashlock,
-                                                                                      transferId,
-                                                                                      options);
+      console.log("Before:" + chainId);
+      await switchNetworkNoReload(destChainID);
+      console.log("after:" + chainId);
+      {
+        try{
+          const initDestinationTransfer = await destinationBridge.initDestinationTransfer(amount,
+            timelock,
+            destination,
+            _hashlock,
+            transferId,
+            options);
+  
+          setTxHash(initDestinationTransfer.hash);
+          console.log("init destination");
+          setShowLoaderModal(true);
+          const destTransferReceipt = await initDestinationTransfer.wait();
+          const [initDestinationTransferResult] = destTransferReceipt.events.filter((el)=>{ return el.event == 'NewTransferAvailable'});
+          console.log("wait for timelock");
+          await wait(20000);
+          console.log("withdraw");
+          const withdrawRequest = await destinationBridge.withdraw(transferId);
+          setShowLoaderModal(false);
+          setTxHash(withdrawRequest.hash);
+          setShowLoaderModal(true);
+          await withdrawRequest.wait()
+          setShowLoaderModal(false);
+        }
+        catch(err){
+          const msg:string = "Error while processing bridge cross, performing a refund.";
+          errorTrigger(msg);
+          await switchNetworkNoReload(originChainID);
+          const refund = await originBridge.requestRefund(transferId)
+        }
+      }
       
-      setTxHash(initDestinationTransfer.hash);
-      console.log("init destination");
-      setShowLoaderModal(true);
-      const destTransferReceipt = await initDestinationTransfer.wait();
-      const [initDestinationTransferResult] = destTransferReceipt.events.filter((el)=>{ return el.event == 'NewTransferAvailable'});
-      console.log("wait for timelock");
-      await wait(20000);
-      console.log("widthderaw");
-      const withdrawRequest = await destinationBridge.withdraw(transferId);
-      setShowLoaderModal(false);
-      setTxHash(withdrawRequest.hash);
-      setShowLoaderModal(true);
-      await withdrawRequest.wait()
-      setShowLoaderModal(false);
-      console.log("commit tx");
-      await switchNetworkNoReload();
 
+      console.log("Before:" + chainId);
+      await switchNetworkNoReload(originChainID);
+      console.log("after:" + chainId);
+
+      console.log("commit tx");
       const commit = await originBridge.commitTransaction(transferId);
       setTxHash(commit.hash);
       setShowLoaderModal(true);
@@ -198,14 +220,12 @@ const Bridge = ({GOERLI_TOKEN,
       setShowLoaderModal(false);
       const [commitEvent] = commitReceipt.events.filter((el)=>{ return el.event == 'TransactionCommited'});
       const [commitedTransferId] = commitEvent.args;
-
     }
       catch(err){
        
         errorTrigger(err.message);
-        console.log(err);
     }
-    
+    window.location.reload();
   }
 
   const handleGetNetwork = async () => {
@@ -231,6 +251,7 @@ const Bridge = ({GOERLI_TOKEN,
             <DropdownButton
               title="Change Network destination"
               onSelect={handleSelectNetwork}
+              disabled={!enable}
             >
               <Dropdown.Item eventKey="Goerli">Goerli</Dropdown.Item>
               <Dropdown.Item eventKey="Mumbai">Mumbai</Dropdown.Item>
@@ -248,8 +269,8 @@ const Bridge = ({GOERLI_TOKEN,
           <InputGroup className="mb-3">
           <InputGroup.Text>LMTs to Transfer:</InputGroup.Text>
           
-          <Form.Control type="number" min={0} max={availableTokens} aria-label="Tokens to Transfer" value={tokensToTx} onChange={handleChangeTokensToTx}/>
-          <Button variant="outline-secondary" id="button-addon2" onClick={handleMax}>
+          <Form.Control type="number"  min={0} max={availableTokens} aria-label="Tokens to Transfer" value={tokensToTx} onChange={handleChangeTokensToTx} disabled={!enable}/>
+          <Button variant="outline-secondary" id="button-addon2" onClick={handleMax} disabled={!enable}>
           Max
         </Button>
           
@@ -260,8 +281,8 @@ const Bridge = ({GOERLI_TOKEN,
         </tbody>
         
       </Table>
-        <Button variant="danger"  onClick={handleClear}> Clear</Button>{" "}
-        <Button variant="success" onClick={handleTransfer}> Transfer</Button>
+        <Button variant="danger"  onClick={handleClear} disabled={!enable}> Clear</Button>{" "}
+        <Button variant="success" onClick={handleTransfer} disabled={!enable} > Transfer</Button>
 
       </Container>
 
