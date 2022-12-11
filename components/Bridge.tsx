@@ -42,11 +42,6 @@ const Bridge = ({GOERLI_TOKEN,
   const [enable,setEnable] = useState<boolean>(true); 
   const [scan,setScan] = useState<string>();
   
-
-
-
- 
-
   useEffect( () => {
     const fetchData = async () => {
     await handleGetAvailableTokens();
@@ -148,11 +143,13 @@ const Bridge = ({GOERLI_TOKEN,
     const goerliId = `0x${Number(5).toString(16)}`;
     const destinationBridge = destNetwork ===  "Mumbai" ? useMumbaiBridge: useGoerliBridge;
     const destChainID = destNetwork ===  "Mumbai" ?  mumbaiId: goerliId;
-    const originChainID = destNetwork ===  "Mumbai" ?  goerliId: mumbaiId;
+    const originChainID = destNetwork ===  "Mumbai" ?  goerliId : mumbaiId;
     let transferId;
     try{
       
       console.log("Approve");
+      console.log(originChainID);
+      setScan(originChainID);
       const approve = await originToken.approve(originBridge.address,allowTokens);
       setTxHash(approve.hash);
       setShowLoaderModal(true);
@@ -174,6 +171,7 @@ const Bridge = ({GOERLI_TOKEN,
       console.log("switch");
       console.log("Before:" + chainId);
       await switchNetworkNoReload(destChainID);
+      setScan(destChainID);
       console.log("after:" + chainId);
       {
         try{
@@ -203,15 +201,12 @@ const Bridge = ({GOERLI_TOKEN,
           const msg:string = "Error while processing bridge cross, performing a refund.";
           errorTrigger(msg);
           await switchNetworkNoReload(originChainID);
+          setScan(originChainID);
           const refund = await originBridge.requestRefund(transferId)
         }
       }
-      
-
-      console.log("Before:" + chainId);
       await switchNetworkNoReload(originChainID);
-      console.log("after:" + chainId);
-
+      setScan(originChainID);
       console.log("commit tx");
       const commit = await originBridge.commitTransaction(transferId);
       setTxHash(commit.hash);
@@ -286,7 +281,7 @@ const Bridge = ({GOERLI_TOKEN,
 
       </Container>
 
-      <LoaderTransaction showLoaderModal={showLoaderModal} txHash={txHash}/>
+      <LoaderTransaction showLoaderModal={showLoaderModal} txHash={txHash} scan={scan}/>
       <ErrorHandler showErrorHandler={showErrorHandler} errorMsg={errorMsg} handleCleanErrors={handleCleanErrors}/>
 
 
